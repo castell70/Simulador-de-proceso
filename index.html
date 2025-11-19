@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simulador de Procesos</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "chart.js": "https://esm.sh/chart.js@4.4.0",
+      "chart.js/auto": "https://esm.sh/chart.js@4.4.0/auto",
+      "jspdf": "https://esm.sh/jspdf@2.5.1"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">Simulador de Procesos</div>
+    <div class="powered">Powered by ITCPO</div>
+  </div>
+
+  <!-- Added action buttons below topbar -->
+  <div class="top-actions">
+    <button id="load-sample" class="small-btn action-btn orange">Cargar ejemplo</button>
+    <button id="reset-templates" class="small-btn action-btn coral">Reiniciar</button>
+    <button id="export-pdf" class="small-btn action-btn teal-dark">Informe PDF</button>
+    <button id="export-word" class="small-btn action-btn teal">Respaldar JSON</button>
+  </div>
+
+  <main id="app">
+    <section class="left">
+      <h2>Plantillas / Entradas</h2>
+
+      <div class="card">
+        <h3>1) Añadir Proceso</h3>
+        <label>Nombre del proceso<input id="proc-name" placeholder="Ej: Recepción"></label>
+        <label>Personas asignadas<input id="proc-people" type="number" min="1" value="1"></label>
+        <label>Meta calidad (0-100)<input id="proc-quality-target" type="number" min="0" max="100" value="90"></label>
+        <button id="add-process">Agregar Proceso</button>
+      </div>
+
+      <div class="card">
+        <h3>2) Añadir Tarea</h3>
+        <label>Proceso
+          <select id="task-process"></select>
+        </label>
+        <label>Nombre tarea<input id="task-name" placeholder="Ej: Verificar pedido"></label>
+        <label>Dificultad (1-10)<input id="task-diff" type="number" min="1" max="10" value="3"></label>
+        <label>Costo por tarea (USD)<input id="task-cost" type="number" min="0" step="0.01" value="5"></label>
+        <label>Cantidad tareas<input id="task-qty" type="number" min="1" value="10"></label>
+        <button id="add-task">Agregar Tarea</button>
+      </div>
+
+      <div class="card">
+        <h3>3) Ajustar asignación por persona</h3>
+        <p class="muted">Selecciona proceso y distribuye tareas entre personas (suma debe ser ≤ total tareas)</p>
+        <label>Proceso
+          <select id="assign-process"></select>
+        </label>
+        <div id="assign-persons"></div>
+        <button id="save-assign">Guardar Asignación</button>
+      </div>
+
+      <div class="card small">
+        <button id="run-sim">Ejecutar Simulación</button>
+        <button id="reset">Restablecer</button>
+      </div>
+
+      <div class="card">
+        <h3>Registro rápido</h3>
+        <p class="muted">Vista de registro por proceso (tareas, dificultad, asignadas, costo)</p>
+        <div id="records"></div>
+      </div>
+    </section>
+
+    <section class="right">
+      <header>
+        <h1>Tablero de Simulación</h1>
+        <div class="summary">
+          <div>Total tareas: <span id="sum-tasks">0</span></div>
+          <div>Costo total: $<span id="sum-cost">0.00</span></div>
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="panel">
+          <h4>Tareas por Proceso</h4>
+          <canvas id="chart-tasks"></canvas>
+        </div>
+
+        <div class="panel">
+          <h4>Eficiencia por Proceso</h4>
+          <canvas id="chart-eff"></canvas>
+        </div>
+
+        <div class="panel">
+          <h4>Calidad por Proceso</h4>
+          <canvas id="chart-qual"></canvas>
+        </div>
+
+        <div class="panel large">
+          <h4>Detalles por Persona</h4>
+          <div id="person-details"></div>
+          <div id="analysis-box" class="analysis-box" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <footer class="controls">
+        <label>Velocidad de simulación
+          <input id="sim-speed" type="range" min="0.25" max="2" step="0.25" value="1">
+        </label>
+        <label>
+          Aleatoriedad (impacto en calidad/tiempo)
+          <input id="sim-noise" type="range" min="0" max="1" step="0.05" value="0.2">
+        </label>
+      </footer>
+    </section>
+  </main>
+
+  <!-- Help floating button and modal -->
+  <button id="help-fab" title="Ayuda">?</button>
+
+  <div id="help-modal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+      <button id="help-close" class="modal-close">&times;</button>
+      <h2>Introducción</h2>
+      <p>Esta herramienta permite simular procesos, medir eficiencia y calidad por proceso y por persona, y analizar costos y asignaciones de tareas.</p>
+      <h3>Objetivo general</h3>
+      <p>Facilitar la toma de decisiones mediante una simulación gráfica de carga de trabajo, eficiencia y calidad por proceso.</p>
+      <h3>Cómo llenar los datos</h3>
+      <ol>
+        <li>Añadir procesos: nombre, número de personas y meta de calidad (0-100).</li>
+        <li>Añadir tareas por proceso: nombre, dificultad (1-10), costo unitario y cantidad de tareas.</li>
+        <li>Ajustar asignaciones por persona en la sección "Ajustar asignación por persona" (las sumas idealmente deben coincidir con la cantidad de tareas).</li>
+        <li>Ejecutar la simulación para ver eficiencia, calidad y detalles por persona.</li>
+      </ol>
+      <h3>Ejemplo completo</h3>
+      <p>Ejemplo: Proceso "Recepción" con 3 personas y meta calidad 92. Tarea "Verificar pedido", dificultad 3, costo 4.5, qty 30 asignada 10/10/10. Al ejecutar la simulación se obtiene:</p>
+      <ul>
+        <li>Tareas por proceso: total de tareas para "Recepción".</li>
+        <li>Eficiencia por proceso: promedio ponderado de eficiencia por persona (mayor dificultad reduce eficiencia).</li>
+        <li>Calidad por proceso: promedio ponderado de calidad por persona comparado con la meta.</li>
+        <li>Detalles por persona: número de tareas asignadas, costo asociado y métricas E (eficiencia) y Q (calidad) que indican el desempeño esperado.</li>
+      </ul>
+      <p>Interpreta: si la eficiencia es baja y la calidad cae por debajo del objetivo, redistribuye tareas o aumenta personal para mejorar los indicadores.</p>
+      <div style="text-align:right;margin-top:8px"><button id="help-download-example">Cargar ejemplo detallado</button></div>
+    </div>
+  </div>
+
+  <!-- Message / Decision modal (custom) -->
+  <div id="msg-modal" class="modal" aria-hidden="true" data-purpose="">
+    <div class="modal-content" id="msg-content" style="max-width:520px">
+      <div id="msg-text" style="white-space:pre-wrap;margin-bottom:12px;color:#111"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="msg-no" class="secondary" style="display:none;padding:8px 12px;border-radius:6px">No</button>
+        <button id="msg-yes" style="padding:8px 12px;border-radius:6px">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
+

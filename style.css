@@ -1,0 +1,202 @@
+:root{
+  --bg:#fafafa;
+  --card:#ffffff;
+  --muted:#666;
+  --accent:#2b7a78;
+  --danger:#ef476f;
+  --panel-border:#e6e6e6;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+/* New topbar */
+.topbar{
+  background: #ff7a00; /* orange */
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+/* Title larger and left-aligned */
+.topbar .title{
+  font-size:20px;
+  text-align:left;
+  color:#fff;
+  font-weight:800;
+}
+
+/* Powered text on the right with slow blink (encendido/apagado) */
+.topbar .powered{
+  font-size:13px;
+  color:#ffffff;
+  opacity:1;
+  animation: slowBlink 2.8s linear infinite;
+  -webkit-animation: slowBlink 2.8s linear infinite;
+  margin-left:12px;
+}
+
+/* keyframes for slow on/off blinking */
+@keyframes slowBlink{
+  0%   { opacity: 1; filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)); }
+  45%  { opacity: 0.18; filter: none; }
+  55%  { opacity: 0.18; filter: none; }
+  100% { opacity: 1; filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)); }
+}
+@-webkit-keyframes slowBlink{
+  0%   { opacity: 1; -webkit-filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)); }
+  45%  { opacity: 0.18; -webkit-filter: none; }
+  55%  { opacity: 0.18; -webkit-filter: none; }
+  100% { opacity: 1; -webkit-filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)); }
+}
+*{box-sizing:border-box}
+html,body,#app{height:100%;margin:0;background:var(--bg);color:#222}
+#app{display:flex;gap:12px;padding:12px}
+.left{width:380px;display:flex;flex-direction:column;gap:12px}
+.right{flex:1;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:18px}
+h2{margin:0 0 8px 0;font-size:16px}
+.card{background:var(--card);padding:10px;border-radius:8px;border:1px solid var(--panel-border)}
+.card.small{display:flex;gap:8px;align-items:center}
+.card h3{margin:0 0 8px 0;font-size:14px}
+label{display:block;font-size:13px;margin:6px 0}
+input,select,button{width:100%;padding:8px;border-radius:6px;border:1px solid #d0d0d0;font-size:14px}
+button{background:var(--accent);color:white;border:none;cursor:pointer}
+button.secondary{background:#888}
+.muted{color:var(--muted);font-size:12px;margin:6px 0}
+header{display:flex;justify-content:space-between;align-items:center}
+.summary{display:flex;gap:12px;font-size:14px;color:#333}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}
+.panel{background:var(--card);padding:10px;border-radius:8px;border:1px solid var(--panel-border)}
+.panel.large{grid-column:1/-1}
+canvas{width:100% !important;height:180px !important}
+#person-details{max-height:250px;overflow:auto}
+/* Analysis box under person details */
+.analysis-box{
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius:8px;
+  padding:10px;
+  margin-top:10px;
+  font-size:13px;
+  color:#222;
+  max-height:160px;
+  overflow:auto;
+}
+.analysis-box strong{font-size:13px;display:block;margin-bottom:6px}
+.analysis-box .muted{color:var(--muted);font-size:12px}
+.controls{display:flex;gap:12px;align-items:center;padding:6px}
+#records{max-height:140px;overflow:auto;font-size:13px}
+.process-row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
+.assign-person{display:flex;gap:6px;align-items:center;margin:6px 0}
+.assign-person input{width:80px}
+.small-btn{padding:8px 10px;font-size:13px;border-radius:6px}
+
+/* New layout for the top action buttons: 4 columns in one row */
+.top-actions{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:8px;
+  padding:8px 12px;
+  background: transparent;
+  align-items:center;
+}
+
+/* Ensure buttons fill each grid cell and keep visual variants */
+.top-actions .action-btn{
+  width:100%;
+  display:inline-block;
+  text-align:center;
+  font-weight:700;
+  border:none;
+  cursor:pointer;
+  padding:8px 10px;
+}
+
+/* color variants (kept inline colors moved to CSS for consistency) */
+.action-btn.orange{ background:#ff7a00;color:#fff; }
+.action-btn.coral{ background:#e76f51;color:#fff; }
+.action-btn.teal-dark{ background:#264653;color:#fff; }
+.action-btn.teal{ background:#2a9d8f;color:#fff; }
+
+/* On very small screens, allow two columns to keep buttons usable */
+@media (max-width:520px){
+  .top-actions{ grid-template-columns: repeat(2, 1fr); gap:6px; }
+  .small-btn{font-size:12px;padding:7px 8px}
+}
+#help-fab{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  background:#ff7a00;
+  color:#fff;
+  border:none;
+  font-size:20px;
+  font-weight:700;
+  box-shadow:0 6px 18px rgba(0,0,0,0.18);
+  cursor:pointer;
+  z-index:60;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.45);
+  z-index:70;
+}
+/* Styles for the message modal (box) */
+#msg-modal .modal-content{
+  background:var(--card);
+  padding:14px;
+  border-radius:10px;
+  border:1px solid var(--panel-border);
+  box-shadow:0 8px 28px rgba(0,0,0,0.25);
+  min-width:280px;
+}
+#msg-text{font-size:14px;color:#222}
+#msg-yes{background:var(--accent);color:#fff;border:none;cursor:pointer}
+#msg-no{background:#888;color:#fff;border:none;cursor:pointer}
+@media (max-width:520px){
+  #msg-modal .modal-content{width:92%;}
+}
+.modal-content{
+  width:min(720px,94%);
+  max-height:86%;
+  overflow:auto;
+  background:var(--card);
+  padding:16px;
+  border-radius:10px;
+  border:1px solid var(--panel-border);
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+.modal-close{
+  position:absolute;
+  right:16px;
+  top:12px;
+  background:transparent;
+  border:none;
+  font-size:20px;
+  cursor:pointer;
+}
+.modal h2{margin-top:0}
+@media (max-width:600px){
+  .small-btn{font-size:12px;padding:7px 8px}
+  #help-fab{width:48px;height:48px;right:12px;bottom:12px}
+}
+@media (max-width:900px){
+  #app{padding:8px}
+  .left{width:320px}
+  canvas{height:140px !important}
+}
+
