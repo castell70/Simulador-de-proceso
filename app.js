@@ -18,6 +18,8 @@ const refs = {
   procPeople: $('proc-people'),
   procQualityTarget: $('proc-quality-target'),
   addProcessBtn: $('add-process'),
+  procSelect: $('proc-select'),
+  updateProcessBtn: $('update-process'),
 
   taskProcess: $('task-process'),
   taskName: $('task-name'),
@@ -52,7 +54,15 @@ const refs = {
 
   // New DOM refs for exports and help
   exportPdf: $('export-pdf'),
-  exportWord: $('export-word')
+  exportWord: $('export-word'),
+  loadBackupBtn: $('load-backup'),
+
+  // NEW: task manager button and table modal
+  manageTasksBtn: $('manage-tasks'),
+  tasksModal: $('tasks-modal'),
+  tasksTableBody: document.querySelector('#tasks-table tbody'),
+  tasksClose: $('tasks-close'),
+  tasksClose2: $('tasks-close-2')
 };
 
 // Message modal refs (custom notification + decision)
@@ -398,7 +408,71 @@ function populateSelects(){
   const fills = state.processes.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   refs.taskProcess.innerHTML = fills;
   refs.assignProcess.innerHTML = fills;
+  // process select for editing: prepend empty option
+  refs.procSelect.innerHTML = `<option value="">-- Nuevo proceso --</option>${fills}`;
 }
+
+// When user chooses a process to edit, load values into form
+refs.procSelect.addEventListener('change', ()=>{
+  const pid = refs.procSelect.value;
+  if(!pid){
+    refs.procName.value = '';
+    refs.procPeople.value = 1;
+    refs.procQualityTarget.value = 90;
+    refs.updateProcessBtn.disabled = true;
+    return;
+  }
+  const p = state.processes.find(x=>x.id===pid);
+  if(p){
+    refs.procName.value = p.name;
+    refs.procPeople.value = p.people;
+    refs.procQualityTarget.value = p.qualityTarget;
+    refs.updateProcessBtn.disabled = false;
+  }
+});
+
+// Add process remains create-only
+refs.addProcessBtn.addEventListener('click', ()=>{
+  const name = refs.procName.value.trim();
+  const people = refs.procPeople.value;
+  const qt = refs.procQualityTarget.value;
+  if(!name){ notify('Ingrese nombre de proceso'); return; }
+  addProcess(name, people, qt);
+  refs.procName.value = '';
+  refs.procPeople.value = 1;
+  refs.procQualityTarget.value = 90;
+  // reset edit select
+  refs.procSelect.value = '';
+  refs.updateProcessBtn.disabled = true;
+});
+
+// Update existing process in-place
+refs.updateProcessBtn.addEventListener('click', async ()=>{
+  const pid = refs.procSelect.value;
+  if(!pid){ await notify('Seleccione un proceso a modificar'); return; }
+  const p = state.processes.find(x=>x.id===pid);
+  if(!p){ await notify('Proceso no encontrado'); return; }
+  const ok = await decide('Guardar cambios en el proceso seleccionado?');
+  if(!ok) return;
+  p.name = refs.procName.value.trim() || p.name;
+  p.people = Number(refs.procPeople.value) || p.people;
+  p.qualityTarget = Number(refs.procQualityTarget.value) || p.qualityTarget;
+  // Ensure each task assignments length equals new people count
+  for(const t of p.tasks){
+    if(!Array.isArray(t.assignments)) t.assignments = [];
+    if(t.assignments.length !== p.people){
+      const newArr = Array.from({length:p.people},(v,i)=> Number(t.assignments[i]) || 0);
+      t.assignments = newArr;
+    }
+  }
+  renderAll();
+  await notify('Proceso modificado correctamente');
+  // Keep selection on updated process
+  refs.procSelect.value = p.id;
+});
+
+// initialize update button disabled by default
+refs.updateProcessBtn.disabled = true;
 
 function renderAssignPersons(){
   const procId = refs.assignProcess.value;
@@ -409,13 +483,14 @@ function renderAssignPersons(){
   }
   // For each task in process show controls to allocate per person
   if(proc.tasks.length===0){ refs.assignPersons.innerHTML = '<div class="muted">No hay tareas para este proceso</div>'; return; }
-  // We show a selector for each task to enter per-person allocations (simple aggregated UI)
+  // We show a selector for each task to enter per-person allocations (two-column layout)
   for(const t of proc.tasks){
     const div = document.createElement('div');
     div.className = 'task-assign';
     div.innerHTML = `<strong>${t.name}</strong> (total ${t.qty})<div class="muted">Asigne tareas por persona</div>`;
     const personsCont = document.createElement('div');
     personsCont.style.marginTop='6px';
+    personsCont.className = 'persons-grid';
     for(let i=0;i<proc.people;i++){
       const pdiv = document.createElement('div');
       pdiv.className = 'assign-person';
@@ -626,15 +701,6 @@ function renderAll(simResult){
 }
 
 // Event wiring
-refs.addProcessBtn.addEventListener('click', ()=>{
-  const name = refs.procName.value.trim();
-  const people = refs.procPeople.value;
-  const qt = refs.procQualityTarget.value;
-  if(!name){ notify('Ingrese nombre de proceso'); return; }
-  addProcess(name, people, qt);
-  refs.procName.value = '';
-});
-
 refs.addTaskBtn.addEventListener('click', ()=>{
   const pid = refs.taskProcess.value;
   const name = refs.taskName.value.trim();
@@ -668,14 +734,17 @@ function loadSampleData(){
   const p1 = {id:uid('proc'), name:'Recepción', people:3, qualityTarget:92, tasks:[]};
   p1.tasks.push({id:uid('task'), name:'Verificar pedido', diff:3, cost:4.5, qty:30, assignments: [10,10,10]});
   p1.tasks.push({id:uid('task'), name:'Registrar entrada', diff:2, cost:2.0, qty:20, assignments: [7,7,6]});
+  p1.tasks.push({id:uid('task'), name:'Inspección inicial', diff:4, cost:6.0, qty:15, assignments: [5,5,5]});
   // Process 2
   const p2 = {id:uid('proc'), name:'Procesamiento', people:4, qualityTarget:88, tasks:[]};
   p2.tasks.push({id:uid('task'), name:'Revisión técnica', diff:6, cost:12.0, qty:40, assignments: [10,10,10,10]});
   p2.tasks.push({id:uid('task'), name:'Ajustes', diff:5, cost:8.5, qty:25, assignments: [7,6,6,6]});
+  p2.tasks.push({id:uid('task'), name:'Pruebas funcionales', diff:7, cost:15.0, qty:18, assignments: [5,4,5,4]});
   // Process 3
   const p3 = {id:uid('proc'), name:'Despacho', people:2, qualityTarget:95, tasks:[]};
   p3.tasks.push({id:uid('task'), name:'Empaquetado', diff:3, cost:3.5, qty:35, assignments: [18,17]});
   p3.tasks.push({id:uid('task'), name:'Generar guía', diff:2, cost:1.5, qty:35, assignments: [18,17]});
+  p3.tasks.push({id:uid('task'), name:'Control de salida', diff:4, cost:2.5, qty:20, assignments: [10,10]});
 
   state.processes.push(p1,p2,p3);
   renderAll();
@@ -707,6 +776,68 @@ refs.exportWord.addEventListener('click', async ()=>{
   if(ok) backupDataJSON();
 });
 
+// New: hidden file input for loading backups
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'application/json';
+fileInput.style.display = 'none';
+document.body.appendChild(fileInput);
+
+refs.loadBackupBtn.addEventListener('click', async ()=>{
+  const ok = await decide('Cargar un archivo de respaldo reemplazará el estado actual. Continuar?');
+  if(!ok) return;
+  fileInput.value = '';
+  fileInput.click();
+});
+
+fileInput.addEventListener('change', async (ev)=>{
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  try{
+    const text = await f.text();
+    const data = JSON.parse(text);
+    // Basic validation: expect object with state.processes
+    if(!data || !data.state || !Array.isArray(data.state.processes)){
+      await notify('Archivo no válido: no contiene datos de respaldo esperados.');
+      return;
+    }
+    // Restore minimal state safely (keep nextId generation with new ids)
+    // Convert/process to expected shapes: ensure assignments arrays exist for tasks
+    const loaded = data.state;
+    // normalize
+    for(const p of loaded.processes){
+      p.people = Number(p.people) || 1;
+      p.qualityTarget = Number(p.qualityTarget) || 90;
+      p.tasks = Array.isArray(p.tasks) ? p.tasks : [];
+      for(const t of p.tasks){
+        t.qty = Number(t.qty) || 0;
+        t.diff = Number(t.diff) || 1;
+        t.cost = Number(t.cost) || 0;
+        if(!Array.isArray(t.assignments) || t.assignments.length !== p.people){
+          t.assignments = Array.from({length:p.people},()=>0);
+        } else {
+          // coerce to numbers
+          t.assignments = t.assignments.map(x=>Number(x)||0);
+        }
+      }
+    }
+    // replace state
+    state.processes = loaded.processes;
+    // ensure unique ids (if missing, add)
+    for(const p of state.processes){
+      if(!p.id) p.id = uid('proc');
+      for(const t of p.tasks){
+        if(!t.id) t.id = uid('task');
+      }
+    }
+    renderAll();
+    await notify('Respaldo cargado correctamente.');
+  }catch(err){
+    console.error(err);
+    await notify('Error al leer el archivo de respaldo. Asegúrese de que sea JSON válido.');
+  }
+});
+
 // Initial setup
 createCharts();
 renderAll();
@@ -731,3 +862,124 @@ function backupDataJSON(){
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/* ---- NEW: Task management modal behaviors ---- */
+
+// build table rows for all tasks
+function buildTasksTable(){
+  const tbody = refs.tasksTableBody;
+  tbody.innerHTML = '';
+  for(const p of state.processes){
+    for(const t of p.tasks){
+      const tr = document.createElement('tr');
+      tr.dataset.procId = p.id;
+      tr.dataset.taskId = t.id;
+      // assignments displayed as comma-separated
+      const assigns = (Array.isArray(t.assignments) ? t.assignments.join(', ') : '');
+      tr.innerHTML = `
+        <td>${escapeHtml(p.name)}</td>
+        <td><input type="text" data-field="name" value="${escapeHtml(t.name)}"></td>
+        <td><input type="number" min="1" max="10" data-field="diff" value="${t.diff}"></td>
+        <td><input type="number" min="0" step="0.01" data-field="cost" value="${t.cost}"></td>
+        <td><input type="number" min="0" data-field="qty" value="${t.qty}"></td>
+        <td><input type="text" data-field="assignments" value="${assigns}" class="assign-text"></td>
+        <td>
+          <button class="icon-btn save-row" title="Guardar">💾</button>
+          <button class="icon-btn edit-row" title="Editar">✏️</button>
+          <button class="icon-btn del-row" title="Eliminar">🗑️</button>
+        </td>
+      `;
+      // wire per-row buttons
+      tbody.appendChild(tr);
+    }
+  }
+}
+
+// open modal
+function openTasksModal(){
+  buildTasksTable();
+  refs.tasksModal.style.display = 'flex';
+  refs.tasksModal.setAttribute('aria-hidden','false');
+}
+
+// close modal
+function closeTasksModal(){
+  refs.tasksModal.style.display = 'none';
+  refs.tasksModal.setAttribute('aria-hidden','true');
+}
+
+// parse assignments field "n1, n2, n3" into array with process people length
+function parseAssignmentsField(procId, str){
+  const proc = state.processes.find(p=>p.id===procId);
+  const parts = (''+str).split(',').map(s=>Number(s.trim()||0));
+  // normalize length to process.people
+  if(!proc) return parts;
+  const arr = Array.from({length:proc.people},(v,i)=> Number(parts[i]) || 0);
+  return arr;
+}
+
+// save a single row changes back to state
+async function saveRow(tr){
+  const pid = tr.dataset.procId;
+  const tid = tr.dataset.taskId;
+  const proc = state.processes.find(p=>p.id===pid);
+  if(!proc) return;
+  const task = proc.tasks.find(x=>x.id===tid);
+  if(!task) return;
+  const name = tr.querySelector('[data-field="name"]').value.trim();
+  const diff = Number(tr.querySelector('[data-field="diff"]').value) || 1;
+  const cost = Number(tr.querySelector('[data-field="cost"]').value) || 0;
+  const qty = Number(tr.querySelector('[data-field="qty"]').value) || 0;
+  const assignsRaw = tr.querySelector('[data-field="assignments"]').value;
+  const assignments = parseAssignmentsField(pid, assignsRaw);
+  task.name = name || task.name;
+  task.diff = diff;
+  task.cost = cost;
+  task.qty = qty;
+  task.assignments = assignments;
+  renderAll();
+  await notify('Tarea actualizada');
+  // refresh table to reflect normalized assignments
+  buildTasksTable();
+}
+
+// delete a task row
+async function deleteRow(tr){
+  const pid = tr.dataset.procId;
+  const tid = tr.dataset.taskId;
+  const proc = state.processes.find(p=>p.id===pid);
+  if(!proc) return;
+  const ok = await decide('Eliminar esta tarea?');
+  if(!ok) return;
+  proc.tasks = proc.tasks.filter(t=>t.id !== tid);
+  renderAll();
+  buildTasksTable();
+}
+
+// wire manager button
+refs.manageTasksBtn.addEventListener('click', async ()=>{
+  // ensure there is at least one task
+  const hasTasks = state.processes.some(p=>p.tasks && p.tasks.length>0);
+  if(!hasTasks){ await notify('No hay tareas agregadas.'); return; }
+  openTasksModal();
+});
+
+// close buttons
+refs.tasksClose.addEventListener('click', closeTasksModal);
+refs.tasksClose2.addEventListener('click', closeTasksModal);
+
+// delegate table clicks
+refs.tasksTableBody.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const tr = btn.closest('tr');
+  if(btn.classList.contains('save-row')){
+    await saveRow(tr);
+  } else if(btn.classList.contains('del-row')){
+    await deleteRow(tr);
+  } else if(btn.classList.contains('edit-row')){
+    // focus first input in row
+    const first = tr.querySelector('input');
+    if(first) first.focus();
+  }
+});

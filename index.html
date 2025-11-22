@@ -27,6 +27,7 @@
     <button id="reset-templates" class="small-btn action-btn coral">Reiniciar</button>
     <button id="export-pdf" class="small-btn action-btn teal-dark">Informe PDF</button>
     <button id="export-word" class="small-btn action-btn teal">Respaldar JSON</button>
+    <button id="load-backup" class="small-btn action-btn coral">Cargar respaldo</button>
   </div>
 
   <main id="app">
@@ -35,10 +36,18 @@
 
       <div class="card">
         <h3>1) Añadir Proceso</h3>
+        <label>Editar proceso
+          <select id="proc-select">
+            <option value="">-- Nuevo proceso --</option>
+          </select>
+        </label>
         <label>Nombre del proceso<input id="proc-name" placeholder="Ej: Recepción"></label>
         <label>Personas asignadas<input id="proc-people" type="number" min="1" value="1"></label>
         <label>Meta calidad (0-100)<input id="proc-quality-target" type="number" min="0" max="100" value="90"></label>
-        <button id="add-process">Agregar Proceso</button>
+        <div style="display:flex;gap:8px">
+          <button id="add-process">Agregar Proceso</button>
+          <button id="update-process" style="background:#264653">Modificar Proceso</button>
+        </div>
       </div>
 
       <div class="card">
@@ -50,7 +59,12 @@
         <label>Dificultad (1-10)<input id="task-diff" type="number" min="1" max="10" value="3"></label>
         <label>Costo por tarea (USD)<input id="task-cost" type="number" min="0" step="0.01" value="5"></label>
         <label>Cantidad tareas<input id="task-qty" type="number" min="1" value="10"></label>
-        <button id="add-task">Agregar Tarea</button>
+
+        <!-- new: two-button row: Agregar Tarea + Administrar Tareas -->
+        <div class="two-btns">
+          <button id="add-task">Agregar Tarea</button>
+          <button id="manage-tasks" class="small-action">Administrar Tareas</button>
+        </div>
       </div>
 
       <div class="card">
@@ -129,23 +143,66 @@
       <p>Esta herramienta permite simular procesos, medir eficiencia y calidad por proceso y por persona, y analizar costos y asignaciones de tareas.</p>
       <h3>Objetivo general</h3>
       <p>Facilitar la toma de decisiones mediante una simulación gráfica de carga de trabajo, eficiencia y calidad por proceso.</p>
-      <h3>Cómo llenar los datos</h3>
+      <h3>Cómo llenar los datos (guía paso a paso)</h3>
       <ol>
-        <li>Añadir procesos: nombre, número de personas y meta de calidad (0-100).</li>
-        <li>Añadir tareas por proceso: nombre, dificultad (1-10), costo unitario y cantidad de tareas.</li>
-        <li>Ajustar asignaciones por persona en la sección "Ajustar asignación por persona" (las sumas idealmente deben coincidir con la cantidad de tareas).</li>
-        <li>Ejecutar la simulación para ver eficiencia, calidad y detalles por persona.</li>
+        <li><strong>Añadir procesos</strong>: En "Añadir Proceso" indique un nombre claro (ej. "Recepción"), el número de personas asignadas a ese proceso y la meta de calidad (0-100) que espera alcanzar para ese proceso. Ejemplo: 3 personas, meta calidad 92.</li>
+        <li><strong>Añadir tareas</strong>: Seleccione el proceso correspondiente, ingrese el nombre de la tarea (ej. "Verificar pedido"), la dificultad (1-10, donde 1 es muy simple y 10 muy complejo), el costo unitario estimado por tarea y la cantidad total de tareas a procesar. La dificultad afecta tiempo y calidad estimada.</li>
+        <li><strong>Revisar asignaciones automáticas</strong>: Si no asigna tareas manualmente, la aplicación reparte las tareas de forma equitativa entre las personas del proceso al ejecutar la simulación.</li>
+        <li><strong>Ajustar asignación por persona</strong>: En "Ajustar asignación por persona" seleccione el proceso y para cada tarea introduzca cuántas unidades debe realizar cada persona (la suma idealmente debe coincidir con la cantidad total de la tarea). Si las sumas difieren, la simulación escala las cantidades para cumplir la cantidad total.</li>
+        <li><strong>Ejecutar simulación</strong>: Pulse "Ejecutar Simulación" para que el motor calcule métricas por persona y por proceso: eficiencia (E) y calidad (Q), costos y detalles por persona.</li>
+        <li><strong>Interpretar resultados</strong>: Revise "Detalles por Persona" y el "Análisis interpretativo" para recomendaciones rápidas; use la sección de registros para ver resumen por proceso y costos.</li>
       </ol>
-      <h3>Ejemplo completo</h3>
-      <p>Ejemplo: Proceso "Recepción" con 3 personas y meta calidad 92. Tarea "Verificar pedido", dificultad 3, costo 4.5, qty 30 asignada 10/10/10. Al ejecutar la simulación se obtiene:</p>
+
+      <h3>Qué significa cada control importante</h3>
       <ul>
-        <li>Tareas por proceso: total de tareas para "Recepción".</li>
-        <li>Eficiencia por proceso: promedio ponderado de eficiencia por persona (mayor dificultad reduce eficiencia).</li>
-        <li>Calidad por proceso: promedio ponderado de calidad por persona comparado con la meta.</li>
-        <li>Detalles por persona: número de tareas asignadas, costo asociado y métricas E (eficiencia) y Q (calidad) que indican el desempeño esperado.</li>
+        <li><strong>Velocidad de simulación</strong>: Ajusta un factor que simula cambios en ritmo de trabajo. Valores mayores modelan procesos más rápidos (por ejemplo, mejores herramientas o mayor ritmo), lo que puede aumentar la eficiencia estimada; valores menores representan ritmos más lentos que pueden reducir eficiencia. No cambia cantidades de tareas, solo altera el tiempo/efectividad por tarea en la simulación.</li>
+        <li><strong>Aleatoriedad (impacto en calidad/tiempo)</strong>: Controla el componente de variabilidad estocástica en la simulación — mayor aleatoriedad introduce más fluctuación en resultados de eficiencia y calidad (simulando errores, variabilidad humana, fallos aleatorios), mientras que valores bajos generan resultados más deterministas y estables.</li>
       </ul>
-      <p>Interpreta: si la eficiencia es baja y la calidad cae por debajo del objetivo, redistribuye tareas o aumenta personal para mejorar los indicadores.</p>
+
+      <h3>Ejemplo completo y cómo interpretarlo</h3>
+      <p>Ejemplo: Proceso "Recepción" con 3 personas y meta calidad 92.</p>
+      <ul>
+        <li>Tarea 1: "Verificar pedido" — dificultad 3, costo 4.5, qty 30, asignada 10/10/10.</li>
+        <li>Tarea 2: "Registrar entrada" — dificultad 2, costo 2.0, qty 20, asignada 7/7/6.</li>
+      </ul>
+      <p>Al ejecutar la simulación obtendrá:</p>
+      <ul>
+        <li><strong>Tareas por proceso</strong>: total de tareas de "Recepción" (ej. 50).</li>
+        <li><strong>Eficiencia por persona</strong>: E indica qué tan rápido/efectivo trabaja cada persona considerando dificultad y velocidad; un E bajo sugiere sobrecarga o tareas muy complejas.</li>
+        <li><strong>Calidad por persona</strong>: Q muestra la calidad esperada según la dificultad y la meta del proceso; valores por debajo de la meta indican necesidad de capacitación o revisar asignaciones.</li>
+        <li><strong>Costos</strong>: Se calculan por persona multiplicando tareas asignadas por costo unitario.</li>
+      </ul>
+      <p>Interpretación práctica: Si la eficiencia es baja (por ejemplo <60%) y la calidad cae por debajo del objetivo, intente redistribuir tareas, reducir la dificultad (simplificar procesos) o aumentar personal; si la variabilidad (aleatoriedad) genera resultados inestables, considere estandarizar pasos o formar al personal para reducir errores.</p>
+
       <div style="text-align:right;margin-top:8px"><button id="help-download-example">Cargar ejemplo detallado</button></div>
+    </div>
+  </div>
+
+  <!-- Tasks management modal -->
+  <div id="tasks-modal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+      <button id="tasks-close" class="modal-close">&times;</button>
+      <h2>Tareas agregadas</h2>
+      <div style="margin-bottom:8px" class="muted">Edite filas y presione el icono guardar (💾) para aplicar cambios por tarea.</div>
+      <div style="overflow:auto;max-height:360px">
+        <table id="tasks-table" class="tasks-table">
+          <thead>
+            <tr>
+              <th>Proceso</th>
+              <th>Nombre</th>
+              <th>Dificultad</th>
+              <th>Costo</th>
+              <th>Cantidad</th>
+              <th>Asignaciones</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button id="tasks-close-2">Cerrar</button>
+      </div>
     </div>
   </div>
 

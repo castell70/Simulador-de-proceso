@@ -96,14 +96,29 @@ canvas{width:100% !important;height:180px !important}
 .process-row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .assign-person{display:flex;gap:6px;align-items:center;margin:6px 0}
 .assign-person input{width:80px}
+
+/* NEW: two-column grid for per-person inputs inside each task */
+.persons-grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:8px 12px;
+  align-items:start;
+}
+
+/* On very small screens fallback to single column for readability */
+@media (max-width:420px){
+  .persons-grid{ grid-template-columns: 1fr; }
+}
+
+/* small-btn */
 .small-btn{padding:8px 10px;font-size:13px;border-radius:6px}
 
 /* New layout for the top action buttons: 4 columns in one row */
 .top-actions{
   display:grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap:8px;
-  padding:8px 12px;
+  padding:6px 12px;
   background: transparent;
   align-items:center;
 }
@@ -116,7 +131,9 @@ canvas{width:100% !important;height:180px !important}
   font-weight:700;
   border:none;
   cursor:pointer;
-  padding:8px 10px;
+  padding:6px 8px;
+  font-size:13px;
+  line-height:1;
 }
 
 /* color variants (kept inline colors moved to CSS for consistency) */
@@ -171,7 +188,7 @@ canvas{width:100% !important;height:180px !important}
   #msg-modal .modal-content{width:92%;}
 }
 .modal-content{
-  width:min(720px,94%);
+  width:min(840px,94%);
   max-height:86%;
   overflow:auto;
   background:var(--card);
@@ -199,4 +216,44 @@ canvas{width:100% !important;height:180px !important}
   .left{width:320px}
   canvas{height:140px !important}
 }
+
+/* --- New styles for task management --- */
+.two-btns{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.two-btns button{flex:1}
+.small-action{
+  padding:6px 10px;
+  font-size:13px;
+  border-radius:6px;
+  background:#3b6978;
+}
+
+/* tasks table inside modal */
+.tasks-table{width:100%;border-collapse:collapse;font-size:13px}
+.tasks-table th, .tasks-table td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+.tasks-table thead th{background:#fafafa;font-weight:600}
+.tasks-table td .icon-btn{background:transparent;border:none;cursor:pointer;font-size:16px;padding:6px;margin-left:6px}
+.tasks-table input[type="text"], .tasks-table input[type="number"]{width:100%;padding:6px;border-radius:6px;border:1px solid #ddd;font-size:13px}
+.tasks-table .assign-text{font-size:12px;color:var(--muted)}
+
+/* Ensure Actions column is wider and icons centered/aligned */
+.tasks-table th:last-child,
+.tasks-table td:last-child{
+  width:220px;
+  text-align:center;
+  vertical-align:middle;
+  /* make the cell a flex container so icons stay on one line and centered */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+
+/* Slightly increase button/icon spacing to align visually */
+.tasks-table td .icon-btn{font-size:18px;padding:8px;margin-left:4px}
+/* ensure icon buttons don't wrap and remain on same row */
+.tasks-table td .icon-btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
 
