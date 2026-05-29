@@ -3,8 +3,7 @@ import Chart from "chart.js/auto";
 import { jsPDF } from "jspdf";
 
 const state = {
-  processes: [], // {id,name,people: n,qualityTarget, tasks: [{id,name,diff,cost,qty,assignments:[]}]}
-  nextId: 1
+  processes: [] // {id,name,people: n,qualityTarget, tasks: [{id,name,diff,cost,qty,assignments:[]}]}
 };
 
 function $(id){return document.getElementById(id)}
