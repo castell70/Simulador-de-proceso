@@ -31,63 +31,91 @@
   </div>
 
   <main id="app">
-    <section class="left">
-      <h2>Plantillas / Entradas</h2>
+    <aside class="left menu-col" aria-label="Menú de plantillas">
+      <nav class="menu">
+        <h2>Plantillas</h2>
+        <button id="menu-add-process" class="menu-btn">1) Añadir Proceso</button>
+        <button id="menu-add-task" class="menu-btn">2) Añadir Tarea</button>
+        <button id="menu-assign" class="menu-btn">3) Ajustar asignación</button>
+        <button id="menu-records" class="menu-btn">Registro rápido</button>
 
-      <div class="card">
-        <h3>1) Añadir Proceso</h3>
-        <label>Editar proceso
-          <select id="proc-select">
-            <option value="">-- Nuevo proceso --</option>
-          </select>
-        </label>
-        <label>Nombre del proceso<input id="proc-name" placeholder="Ej: Recepción"></label>
-        <label>Personas asignadas<input id="proc-people" type="number" min="1" value="1"></label>
-        <label>Meta calidad (0-100)<input id="proc-quality-target" type="number" min="0" max="100" value="90"></label>
-        <div style="display:flex;gap:8px">
-          <button id="add-process">Agregar Proceso</button>
-          <button id="update-process" style="background:#264653">Modificar Proceso</button>
+        <div style="margin-top:12px" class="muted">Selecciona una plantilla para abrir su formulario en ventana.</div>
+      </nav>
+    </aside>
+
+    <!-- Modal wrappers for each template (forms kept with original IDs so app.js continues to work) -->
+    <div id="modal-add-process" class="modal template-modal" aria-hidden="true">
+      <div class="modal-content">
+        <button class="modal-close modal-close-template" data-target="modal-add-process">&times;</button>
+        <div class="card">
+          <h3>1) Añadir Proceso</h3>
+          <label>Editar proceso
+            <select id="proc-select">
+              <option value="">-- Nuevo proceso --</option>
+            </select>
+          </label>
+          <label>Nombre del proceso<input id="proc-name" placeholder="Ej: Recepción"></label>
+          <label>Personas asignadas<input id="proc-people" type="number" min="1" value="1"></label>
+          <label>Meta calidad (0-100)<input id="proc-quality-target" type="number" min="0" max="100" value="90"></label>
+          <div style="display:flex;gap:8px">
+            <button id="add-process">Agregar Proceso</button>
+            <button id="update-process" style="background:#264653">Modificar Proceso</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <h3>2) Añadir Tarea</h3>
-        <label>Proceso
-          <select id="task-process"></select>
-        </label>
-        <label>Nombre tarea<input id="task-name" placeholder="Ej: Verificar pedido"></label>
-        <label>Dificultad (1-10)<input id="task-diff" type="number" min="1" max="10" value="3"></label>
-        <label>Costo por tarea (USD)<input id="task-cost" type="number" min="0" step="0.01" value="5"></label>
-        <label>Cantidad tareas<input id="task-qty" type="number" min="1" value="10"></label>
+    <div id="modal-add-task" class="modal template-modal" aria-hidden="true">
+      <div class="modal-content">
+        <button class="modal-close modal-close-template" data-target="modal-add-task">&times;</button>
+        <div class="card">
+          <h3>2) Añadir Tarea</h3>
+          <label>Proceso
+            <select id="task-process"></select>
+          </label>
+          <label>Nombre tarea<input id="task-name" placeholder="Ej: Verificar pedido"></label>
+          <label>Dificultad (1-10)<input id="task-diff" type="number" min="1" max="10" value="3"></label>
+          <label>Costo por tarea (USD)<input id="task-cost" type="number" min="0" step="0.01" value="5"></label>
+          <label>Cantidad tareas<input id="task-qty" type="number" min="1" value="10"></label>
 
-        <!-- new: two-button row: Agregar Tarea + Administrar Tareas -->
-        <div class="two-btns">
-          <button id="add-task">Agregar Tarea</button>
-          <button id="manage-tasks" class="small-action">Administrar Tareas</button>
+          <!-- two-button row: Agregar Tarea + Administrar Tareas -->
+          <div class="two-btns">
+            <button id="add-task">Agregar Tarea</button>
+            <button id="manage-tasks" class="small-action">Administrar Tareas</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <h3>3) Ajustar asignación por persona</h3>
-        <p class="muted">Selecciona proceso y distribuye tareas entre personas (suma debe ser ≤ total tareas)</p>
-        <label>Proceso
-          <select id="assign-process"></select>
-        </label>
-        <div id="assign-persons"></div>
-        <button id="save-assign">Guardar Asignación</button>
+    <div id="modal-assign" class="modal template-modal" aria-hidden="true">
+      <div class="modal-content">
+        <button class="modal-close modal-close-template" data-target="modal-assign">&times;</button>
+        <div class="card">
+          <h3>3) Ajustar asignación por persona</h3>
+          <p class="muted">Selecciona proceso y distribuye tareas entre personas (suma debe ser ≤ total tareas)</p>
+          <label>Proceso
+            <select id="assign-process"></select>
+          </label>
+          <div id="assign-persons"></div>
+          <button id="save-assign">Guardar Asignación</button>
+        </div>
       </div>
+    </div>
 
-      <div class="card small">
-        <button id="run-sim">Ejecutar Simulación</button>
-        <button id="reset">Restablecer</button>
+    <div id="modal-records" class="modal template-modal" aria-hidden="true">
+      <div class="modal-content">
+        <button class="modal-close modal-close-template" data-target="modal-records">&times;</button>
+        <div class="card">
+          <h3>Registro rápido</h3>
+          <p class="muted">Vista de registro por proceso (tareas, dificultad, asignadas, costo)</p>
+          <div id="records"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="run-sim">Ejecutar Simulación</button>
+            <button id="reset">Restablecer</button>
+          </div>
+        </div>
       </div>
-
-      <div class="card">
-        <h3>Registro rápido</h3>
-        <p class="muted">Vista de registro por proceso (tareas, dificultad, asignadas, costo)</p>
-        <div id="records"></div>
-      </div>
-    </section>
+    </div>
 
     <section class="right">
       <header>
@@ -138,7 +166,7 @@
 
   <div id="help-modal" class="modal" aria-hidden="true">
     <div class="modal-content">
-      <button id="help-close" class="modal-close">&times;</button>
+      <button id="help-close" class="modal-close" aria-label="Cerrar ayuda">&times;</button>
       <h2>Introducción</h2>
       <p>Esta herramienta permite simular procesos, medir eficiencia y calidad por proceso y por persona, y analizar costos y asignaciones de tareas.</p>
       <h3>Objetivo general</h3>
@@ -175,6 +203,11 @@
       <p>Interpretación práctica: Si la eficiencia es baja (por ejemplo <60%) y la calidad cae por debajo del objetivo, intente redistribuir tareas, reducir la dificultad (simplificar procesos) o aumentar personal; si la variabilidad (aleatoriedad) genera resultados inestables, considere estandarizar pasos o formar al personal para reducir errores.</p>
 
       <div style="text-align:right;margin-top:8px"><button id="help-download-example">Cargar ejemplo detallado</button></div>
+
+      <!-- Derechos reservados dentro de la ventana de ayuda (esquina inferior derecha) -->
+      <div style="text-align:right;margin-top:12px;font-size:12px;color:#666">
+        © Carlos Alfredo Castillo Flores - ITCPO - 2026 - Ver. 3.2
+      </div>
     </div>
   </div>
 
@@ -205,6 +238,11 @@
       </div>
     </div>
   </div>
+
+  <!-- Footer centered with rights reserved text -->
+  <footer class="site-footer">
+    © Carlos Alfredo Castillo Flores - ITCPO - 2026 - Ver. 3.2
+  </footer>
 
   <!-- Message / Decision modal (custom) -->
   <div id="msg-modal" class="modal" aria-hidden="true" data-purpose="">

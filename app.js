@@ -81,6 +81,70 @@ helpFab.addEventListener('click', ()=>{ helpModal.style.display='flex'; helpModa
 helpClose.addEventListener('click', ()=>{ helpModal.style.display='none'; helpModal.setAttribute('aria-hidden','true'); });
 helpModal.addEventListener('click',(e)=>{ if(e.target===helpModal){ helpModal.style.display='none'; helpModal.setAttribute('aria-hidden','true'); } });
 
+// Template menu modal wiring (open/close behavior)
+const menuAddProcess = document.getElementById('menu-add-process');
+const menuAddTask = document.getElementById('menu-add-task');
+const menuAssign = document.getElementById('menu-assign');
+const menuRecords = document.getElementById('menu-records');
+
+const modalAddProcess = document.getElementById('modal-add-process');
+const modalAddTask = document.getElementById('modal-add-task');
+const modalAssign = document.getElementById('modal-assign');
+const modalRecords = document.getElementById('modal-records');
+
+function openTemplateModal(modal){
+  if(!modal) return;
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden','false');
+}
+function closeTemplateModal(modal){
+  if(!modal) return;
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden','true');
+}
+
+[menuAddProcess, menuAddTask, menuAssign, menuRecords].forEach(btn=>{
+  if(!btn) return;
+  btn.addEventListener('click', async ()=>{
+    // close all first
+    [modalAddProcess, modalAddTask, modalAssign, modalRecords].forEach(m=> closeTemplateModal(m));
+
+    // If the user clicked "Ajustar asignación", ensure we have data to work with
+    if(btn.id === 'menu-assign'){
+      if(!state.processes || state.processes.length === 0){
+        await notify('No se han agregado datos al sistema. Añada procesos y tareas antes de ajustar asignaciones.');
+        return;
+      }
+      const hasAnyTasks = state.processes.some(p=> Array.isArray(p.tasks) && p.tasks.length > 0);
+      if(!hasAnyTasks){
+        await notify('No hay tareas registradas. Añada tareas antes de ajustar asignaciones.');
+        return;
+      }
+      openTemplateModal(modalAssign);
+      return;
+    }
+
+    // open corresponding for other menu items
+    if(btn.id === 'menu-add-process') openTemplateModal(modalAddProcess);
+    if(btn.id === 'menu-add-task') openTemplateModal(modalAddTask);
+    if(btn.id === 'menu-records') openTemplateModal(modalRecords);
+  });
+});
+
+// close buttons inside modals (they carry data-target attribute)
+document.querySelectorAll('.modal-close-template').forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    const target = btn.dataset.target;
+    const m = document.getElementById(target);
+    closeTemplateModal(m);
+  });
+});
+// close when clicking outside modal content
+[modalAddProcess, modalAddTask, modalAssign, modalRecords].forEach(m=>{
+  if(!m) return;
+  m.addEventListener('click', (e)=>{ if(e.target === m) closeTemplateModal(m); });
+});
+
 // Show a notification box (OK only)
 function notify(message){
   return new Promise((resolve)=>{
@@ -478,16 +542,39 @@ function renderAssignPersons(){
   const procId = refs.assignProcess.value;
   const proc = state.processes.find(p=>p.id===procId);
   refs.assignPersons.innerHTML = '';
-  if(!proc){ 
+
+  // Update label next to the select to include total tasks for the selected process
+  try{
+    const labelEl = refs.assignProcess.parentElement;
+    if(proc){
+      const totalTasks = proc.tasks.reduce((s,t)=>s + (Number(t.qty)||0), 0);
+      // The label contains a text node before the select; update that node's text
+      if(labelEl.childNodes && labelEl.childNodes[0] && labelEl.childNodes[0].nodeType === Node.TEXT_NODE){
+        labelEl.childNodes[0].textContent = `Proceso — Total tareas: ${totalTasks} `;
+      } else {
+        // fallback: prepend a text node
+        labelEl.insertBefore(document.createTextNode(`Proceso — Total tareas: ${totalTasks} `), refs.assignProcess);
+      }
+    } else {
+      if(labelEl.childNodes && labelEl.childNodes[0] && labelEl.childNodes[0].nodeType === Node.TEXT_NODE){
+        labelEl.childNodes[0].textContent = 'Proceso ';
+      }
+    }
+  }catch(e){
+    // ignore label update errors
+    console.error(e);
+  }
+
+  if(!proc){
     refs.assignPersons.innerHTML = '<div class="muted">Seleccione un proceso con tareas</div>'; return;
   }
-  // For each task in process show controls to allocate per person
   if(proc.tasks.length===0){ refs.assignPersons.innerHTML = '<div class="muted">No hay tareas para este proceso</div>'; return; }
-  // We show a selector for each task to enter per-person allocations (two-column layout)
+  // For each task in process show controls to allocate per person and a live total
   for(const t of proc.tasks){
     const div = document.createElement('div');
     div.className = 'task-assign';
-    div.innerHTML = `<strong>${t.name}</strong> (total ${t.qty})<div class="muted">Asigne tareas por persona</div>`;
+    // add a span to show live total so it updates as user types
+    div.innerHTML = `<strong>${t.name}</strong> <span class="muted" style="margin-left:8px">total: <span class="task-total" data-task="${t.id}">${t.qty}</span></span><div class="muted">Asigne tareas por persona</div>`;
     const personsCont = document.createElement('div');
     personsCont.style.marginTop='6px';
     personsCont.className = 'persons-grid';
@@ -500,6 +587,40 @@ function renderAssignPersons(){
     div.appendChild(personsCont);
     refs.assignPersons.appendChild(div);
   }
+
+  // delegate input events to update live totals as user changes values
+  refs.assignPersons.querySelectorAll('input[type="number"]').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const taskId = inp.dataset.task;
+      const inputs = refs.assignPersons.querySelectorAll(`input[data-task="${taskId}"]`);
+      let sum = 0;
+      inputs.forEach(i=> sum += Number(i.value) || 0);
+      const totalEl = refs.assignPersons.querySelector(`.task-total[data-task="${taskId}"]`);
+      if(totalEl) totalEl.textContent = sum;
+      // Also update overall total in the label when any assignment changes
+      try{
+        const labelEl = refs.assignProcess.parentElement;
+        const procLocal = state.processes.find(p=>p.id===refs.assignProcess.value);
+        if(procLocal){
+          const overall = procLocal.tasks.reduce((s,t)=>{
+            // compute current visible totals: if any task has assignments entered, prefer sum of inputs,
+            // otherwise use t.qty
+            const inputsAll = refs.assignPersons.querySelectorAll(`input[data-task="${t.id}"]`);
+            if(inputsAll && inputsAll.length>0){
+              const ssum = Array.from(inputsAll).reduce((a,ii)=>a + (Number(ii.value)||0),0);
+              return s + ssum;
+            }
+            return s + (Number(t.qty)||0);
+          }, 0);
+          if(labelEl.childNodes && labelEl.childNodes[0] && labelEl.childNodes[0].nodeType === Node.TEXT_NODE){
+            labelEl.childNodes[0].textContent = `Proceso — Total tareas: ${overall} `;
+          }
+        }
+      }catch(e){
+        // ignore
+      }
+    });
+  });
 }
 
 async function saveAssignments(){
@@ -507,12 +628,24 @@ async function saveAssignments(){
   const proc = state.processes.find(p=>p.id===procId);
   if(!proc) return;
   const inputs = refs.assignPersons.querySelectorAll('input[type="number"]');
-  // apply values
+  // apply values and also update task.qty as the sum of assignments (so totals and records reflect changes)
+  // We'll group inputs by task id
+  const groups = {};
   for(const inp of inputs){
     const tid = inp.dataset.task;
     const personIndex = Number(inp.dataset.person);
+    if(!groups[tid]) groups[tid] = [];
+    groups[tid][personIndex] = Number(inp.value) || 0;
+  }
+  for(const tid of Object.keys(groups)){
     const task = proc.tasks.find(t=>t.id===tid);
-    if(task) task.assignments[personIndex] = Number(inp.value);
+    if(!task) continue;
+    const assigns = groups[tid].map(n=>Number(n)||0);
+    // store assignments normalized to process people length
+    task.assignments = Array.from({length: proc.people}, (v,i)=> assigns[i] || 0);
+    // IMPORTANT: update task.qty to be the sum of assignments so totals and simulation use new totals
+    const sumAssigned = task.assignments.reduce((a,b)=>a+b,0);
+    task.qty = sumAssigned;
   }
   renderAll();
   await notify('Asignaciones guardadas');
@@ -531,33 +664,61 @@ function renderRecords(){
 
 function renderPersonDetails(simResult){
   refs.personDetails.innerHTML = '';
-  // Build table-like view
+  // Build compact table-like view with precise per-person task counts derived from assignments (or fair fallback)
   for(const p of state.processes){
     const heading = document.createElement('div');
     heading.innerHTML = `<strong>${p.name}</strong>`;
     refs.personDetails.appendChild(heading);
+
     const list = document.createElement('div');
-    list.style.marginBottom='8px';
-    // prepare per-person aggregated metrics
-    const perPerson = Array.from({length:p.people},()=>({tasks:0,cost:0,eff:0,quality:0}));
+    list.style.marginBottom = '8px';
+
+    // initialize per-person counters
+    const perPerson = Array.from({length: p.people}, () => ({tasks: 0, cost: 0}));
+
+    // For each task, use assignments if present; otherwise distribute qty evenly
     for(const t of p.tasks){
+      let assigns = Array.isArray(t.assignments) ? t.assignments.map(n => Number(n) || 0) : [];
+      const sumAssigned = assigns.reduce((a,b) => a + b, 0);
+      if(sumAssigned === 0){
+        // even distribution fallback
+        const base = Math.floor(t.qty / p.people);
+        assigns = Array.from({length: p.people}, (_,i) => i < (t.qty % p.people) ? base + 1 : base);
+      } else if(sumAssigned !== t.qty && t.qty > 0){
+        // scale proportionally to match declared qty, then correct rounding
+        const factor = t.qty / Math.max(1, sumAssigned);
+        assigns = assigns.map(v => Math.round(v * factor));
+        let diff = t.qty - assigns.reduce((a,b)=>a+b,0);
+        for(let i=0; i<Math.abs(diff); i++){
+          const idx = i % p.people;
+          assigns[idx] += Math.sign(diff);
+        }
+      } else if(t.qty === 0 && sumAssigned > 0){
+        // If qty is zero but assignments present, set qty = sumAssigned to reflect reality
+        t.qty = sumAssigned;
+      }
+
       for(let i=0;i<p.people;i++){
-        const assigned = t.assignments[i] || 0;
-        perPerson[i].tasks += assigned;
-        perPerson[i].cost += assigned * t.cost;
+        const n = assigns[i] || 0;
+        perPerson[i].tasks += n;
+        perPerson[i].cost += n * t.cost;
       }
     }
-    perPerson.forEach((pp,idx)=>{
+
+    // Render per-person rows (more compact spacing)
+    perPerson.forEach((pp, idx) => {
       const el = document.createElement('div');
-      el.style.display='flex';
-      el.style.justifyContent='space-between';
-      el.style.padding='6px 0';
+      el.style.display = 'flex';
+      el.style.justifyContent = 'space-between';
+      el.style.padding = '4px 0';
       el.style.borderBottom = '1px dashed #eee';
+      el.style.fontSize = '13px';
       const sim = simResult?.[p.id]?.people?.[idx];
       const right = sim ? `E:${sim.eff.toFixed(0)}% • Q:${sim.quality.toFixed(0)}%` : '';
       el.innerHTML = `<div>Persona ${idx+1} • T:${pp.tasks} • $${pp.cost.toFixed(2)}</div><div>${right}</div>`;
       list.appendChild(el);
     });
+
     refs.personDetails.appendChild(list);
   }
 }
@@ -690,14 +851,15 @@ function simulate(){
   return result;
 }
 
-// Main render
+// Main render — ensure a simulation result is computed when none is provided so analysis and charts match current data
 function renderAll(simResult){
+  const sim = simResult || (state.processes.length ? simulate() : {});
   populateSelects();
   renderRecords();
   renderAssignPersons();
-  renderPersonDetails(simResult);
-  renderAnalysis(simResult);
-  computeAggregates(simResult || {});
+  renderPersonDetails(sim);
+  renderAnalysis(sim);
+  computeAggregates(sim);
 }
 
 // Event wiring
@@ -716,10 +878,36 @@ refs.addTaskBtn.addEventListener('click', ()=>{
 refs.assignProcess.addEventListener('change', renderAssignPersons);
 refs.saveAssign.addEventListener('click', saveAssignments);
 
-refs.runSim.addEventListener('click', ()=>{
+refs.runSim.addEventListener('click', async ()=>{
+  // Run simulation, refresh all views and show short status message
   const simResult = simulate();
   renderAll(simResult);
   renderPersonDetails(simResult);
+
+  // Insert a transient status line at top of records area
+  try{
+    const nowLabel = `Simulación ejecutada: ${new Date().toLocaleString()}`;
+    // remove any previous status
+    const prev = document.getElementById('sim-status');
+    if(prev) prev.remove();
+    const node = document.createElement('div');
+    node.id = 'sim-status';
+    node.style.fontSize = '13px';
+    node.style.color = '#1f7a78';
+    node.style.padding = '6px 8px';
+    node.style.borderBottom = '1px dashed #e6e6e6';
+    node.textContent = nowLabel;
+    // place at the top of the records container
+    refs.records.insertAdjacentElement('afterbegin', node);
+    // auto-remove after 4 seconds
+    setTimeout(()=>{ const el = document.getElementById('sim-status'); if(el) el.remove(); }, 4000);
+  }catch(e){
+    // fallback: no-op
+    console.error(e);
+  }
+
+  // Also show a confirmation dialog-like toast to the user
+  await notify('Simulación ejecutada');
 });
 
 refs.resetBtn.addEventListener('click', async ()=>{
@@ -729,24 +917,65 @@ refs.resetBtn.addEventListener('click', async ()=>{
 
 // Sample data loader
 function loadSampleData(){
+  // Build sample processes but normalize assignments to ensure they match people count
   state.processes = [];
-  // Process 1
-  const p1 = {id:uid('proc'), name:'Recepción', people:3, qualityTarget:92, tasks:[]};
-  p1.tasks.push({id:uid('task'), name:'Verificar pedido', diff:3, cost:4.5, qty:30, assignments: [10,10,10]});
-  p1.tasks.push({id:uid('task'), name:'Registrar entrada', diff:2, cost:2.0, qty:20, assignments: [7,7,6]});
-  p1.tasks.push({id:uid('task'), name:'Inspección inicial', diff:4, cost:6.0, qty:15, assignments: [5,5,5]});
-  // Process 2
-  const p2 = {id:uid('proc'), name:'Procesamiento', people:4, qualityTarget:88, tasks:[]};
-  p2.tasks.push({id:uid('task'), name:'Revisión técnica', diff:6, cost:12.0, qty:40, assignments: [10,10,10,10]});
-  p2.tasks.push({id:uid('task'), name:'Ajustes', diff:5, cost:8.5, qty:25, assignments: [7,6,6,6]});
-  p2.tasks.push({id:uid('task'), name:'Pruebas funcionales', diff:7, cost:15.0, qty:18, assignments: [5,4,5,4]});
-  // Process 3
-  const p3 = {id:uid('proc'), name:'Despacho', people:2, qualityTarget:95, tasks:[]};
-  p3.tasks.push({id:uid('task'), name:'Empaquetado', diff:3, cost:3.5, qty:35, assignments: [18,17]});
-  p3.tasks.push({id:uid('task'), name:'Generar guía', diff:2, cost:1.5, qty:35, assignments: [18,17]});
-  p3.tasks.push({id:uid('task'), name:'Control de salida', diff:4, cost:2.5, qty:20, assignments: [10,10]});
+  const makeProc = (name, people, qualityTarget, tasks) => {
+    const p = {id:uid('proc'), name, people: Number(people), qualityTarget: Number(qualityTarget), tasks: []};
+    for(const t of tasks){
+      // ensure assignments length equals people and sum equals qty (distribute proportionally if needed)
+      let assigns = Array.isArray(t.assignments) ? t.assignments.map(n=>Number(n)||0) : [];
+      // if assignments length mismatch, create equal distribution
+      if(assigns.length !== p.people){
+        const base = Math.floor(t.qty / p.people);
+        assigns = Array.from({length:p.people},(_,i)=> i < (t.qty % p.people) ? base+1 : base);
+      } else {
+        // scale to match qty if sums differ
+        const sumAssigned = assigns.reduce((a,b)=>a+b,0);
+        if(sumAssigned !== t.qty && sumAssigned > 0){
+          const factor = t.qty / sumAssigned;
+          assigns = assigns.map(v=>Math.round(v * factor));
+          // correct any rounding diff
+          let diff = t.qty - assigns.reduce((a,b)=>a+b,0);
+          for(let i=0;i<Math.abs(diff);i++){
+            const idx = i % p.people;
+            assigns[idx] += Math.sign(diff);
+          }
+        } else if(sumAssigned === 0){
+          const base = Math.floor(t.qty / p.people);
+          assigns = Array.from({length:p.people},(_,i)=> i < (t.qty % p.people) ? base+1 : base);
+        }
+      }
+      p.tasks.push({
+        id: uid('task'),
+        name: t.name,
+        diff: Number(t.diff) || 1,
+        cost: Number(t.cost) || 0,
+        qty: Number(t.qty) || 0,
+        assignments: assigns
+      });
+    }
+    return p;
+  };
 
-  state.processes.push(p1,p2,p3);
+  const p1 = makeProc('Recepción', 3, 92, [
+    {name:'Verificar pedido', diff:3, cost:4.5, qty:30, assignments:[10,10,10]},
+    {name:'Registrar entrada', diff:2, cost:2.0, qty:20, assignments:[7,7,6]},
+    {name:'Inspección inicial', diff:4, cost:6.0, qty:15, assignments:[5,5,5]}
+  ]);
+
+  const p2 = makeProc('Procesamiento', 4, 88, [
+    {name:'Revisión técnica', diff:6, cost:12.0, qty:40, assignments:[10,10,10,10]},
+    {name:'Ajustes', diff:5, cost:8.5, qty:25, assignments:[7,6,6,6]},
+    {name:'Pruebas funcionales', diff:7, cost:15.0, qty:18, assignments:[5,4,5,4]}
+  ]);
+
+  const p3 = makeProc('Despacho', 2, 95, [
+    {name:'Empaquetado', diff:3, cost:3.5, qty:35, assignments:[18,17]},
+    {name:'Generar guía', diff:2, cost:1.5, qty:35, assignments:[18,17]},
+    {name:'Control de salida', diff:4, cost:2.5, qty:20, assignments:[10,10]}
+  ]);
+
+  state.processes.push(p1, p2, p3);
   renderAll();
 }
 
@@ -842,7 +1071,7 @@ fileInput.addEventListener('change', async (ev)=>{
 createCharts();
 renderAll();
 
-// New: backup current state as JSON and trigger download
+ // New: backup current state as JSON and trigger download
 function backupDataJSON(){
   const payload = {
     metadata: {
@@ -856,7 +1085,11 @@ function backupDataJSON(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `respaldo_simulador_${Date.now()}.json`;
+  // build timestamp safe for filenames: YYYYMMDD_HHMMSS
+  const now = new Date();
+  const pad = (n)=>String(n).padStart(2,'0');
+  const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  a.download = `SimuladorProcesos_${ts}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
